@@ -1,2 +1,2 @@
 # queue-redis
-infra.go redis queue driver.
+infra.Go redis queue driver.
