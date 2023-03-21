@@ -1,6 +1,7 @@
 package queue_redis
 
 import (
+	"github.com/infrago/infra"
 	"github.com/infrago/queue"
 )
 
@@ -9,5 +10,5 @@ func Driver() queue.Driver {
 }
 
 func init() {
-	queue.Register("redis", Driver())
+	infra.Register("redis", Driver())
 }
