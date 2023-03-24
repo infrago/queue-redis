@@ -251,7 +251,7 @@ func (this *redisConnect) Stop() error {
 
 	// for _, stoper := range this.stopers {
 	// 	if stoper != "" {
-	// 		this.Enqueue(stoper, nil)
+	// 		this.Publish(stoper, nil)
 	// 	}
 	// }
 
@@ -283,7 +283,7 @@ func (this *redisConnect) publish(name string, msg *redisMsg) error {
 	return nil
 }
 
-func (this *redisConnect) Enqueue(name string, data []byte) error {
+func (this *redisConnect) Publish(name string, data []byte) error {
 	if this.client == nil {
 		return errInvalidConnection
 	}
@@ -296,8 +296,8 @@ func (this *redisConnect) Enqueue(name string, data []byte) error {
 	return this.publish(name, msg)
 }
 
-// DeferredEnqueue redis 暂不支持延迟队列
-func (this *redisConnect) DeferredEnqueue(name string, data []byte, delay time.Duration) error {
+// DeferredPublish redis 暂不支持延迟队列
+func (this *redisConnect) DeferredPublish(name string, data []byte, delay time.Duration) error {
 	if this.client == nil {
 		return errInvalidConnection
 	}
