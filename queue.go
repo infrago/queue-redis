@@ -30,9 +30,8 @@ type (
 		instance *queue.Instance
 		setting  redisSetting
 
-		queues []queue.Info
-		// stopers map[string]string
-		subs []redis.Conn
+		queues []string
+		subs   []redis.Conn
 	}
 	//配置文件
 	redisSetting struct {
@@ -90,9 +89,8 @@ func (driver *redisDriver) Connect(inst *queue.Instance) (queue.Connect, error) 
 
 	return &redisConnect{
 		instance: inst, setting: setting,
-		queues: make([]queue.Info, 0),
-		// stopers: make(map[string]string, 0),
-		subs: make([]redis.Conn, 0),
+		queues: make([]string, 0),
+		subs:   make([]redis.Conn, 0),
 	}, nil
 }
 
@@ -161,11 +159,11 @@ func (this *redisConnect) Close() error {
 	return nil
 }
 
-func (this *redisConnect) Register(info queue.Info) error {
+func (this *redisConnect) Register(name string) error {
 	this.mutex.Lock()
 	defer this.mutex.Unlock()
 
-	this.queues = append(this.queues, info)
+	this.queues = append(this.queues, name)
 
 	return nil
 }
@@ -177,8 +175,8 @@ func (this *redisConnect) Start() error {
 	}
 
 	//这个循环，用来从redis读消息
-	for _, info := range this.queues {
-		queName := info.Name
+	for _, name := range this.queues {
+		queName := name
 
 		conn, err := this.client.Dial()
 		if err != nil {
