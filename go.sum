@@ -1,6 +1,6 @@
-github.com/bamgoo/bamgoo v0.0.1 h1:SkOmwm2koZRwNl2hm5z2rndzKwLkKFPSczmzvayTB7M=
-github.com/bamgoo/base v0.0.0-20260208072247-55b8f46c25df h1:5smpLllI7tXiCPxs1gd6mmgjiX2jcXIJLT7vomNKgys=
-github.com/bamgoo/queue v0.0.1 h1:ZeT6KCnuw9TesehnBWOo31zXAPTrW9elqxnvAqotEzo=
+github.com/infrago/infra v0.0.1 h1:SkOmwm2koZRwNl2hm5z2rndzKwLkKFPSczmzvayTB7M=
+github.com/infrago/base v0.0.0-20260208072247-55b8f46c25df h1:5smpLllI7tXiCPxs1gd6mmgjiX2jcXIJLT7vomNKgys=
+github.com/infrago/queue v0.0.1 h1:ZeT6KCnuw9TesehnBWOo31zXAPTrW9elqxnvAqotEzo=
 github.com/bsm/ginkgo/v2 v2.12.0 h1:Ny8MWAHyOepLGlLKYmXG4IEkioBysk6GpaRTLC8zwWs=
 github.com/bsm/gomega v1.27.10 h1:yeMWxP2pV2fG3FgAODIY8EiRE3dy0aeFYt4l7wh6yKA=
 github.com/cespare/xxhash/v2 v2.3.0 h1:UL815xU9SqsFlibzuggzjXhog7bL6oX9BbNZnL2UFvs=

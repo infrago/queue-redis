@@ -6,13 +6,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/bamgoo/bamgoo"
-	"github.com/bamgoo/queue"
+	"github.com/infrago/infra"
+	"github.com/infrago/queue"
 	"github.com/redis/go-redis/v9"
 )
 
 func init() {
-	bamgoo.Register("redis", &redisDriver{})
+	infra.Register("redis", &redisDriver{})
 }
 
 type (
@@ -134,7 +134,7 @@ func (c *redisConnection) Start() error {
 				}
 
 				msg := redisMessage{}
-				if err := bamgoo.Unmarshal(bamgoo.JSON, []byte(values[1]), &msg); err != nil {
+				if err := infra.Unmarshal(infra.JSON, []byte(values[1]), &msg); err != nil {
 					continue
 				}
 				now := time.Now()
@@ -177,7 +177,7 @@ func (c *redisConnection) Stop() error {
 }
 
 func (c *redisConnection) publish(name string, msg *redisMessage) error {
-	data, err := bamgoo.Marshal(bamgoo.JSON, msg)
+	data, err := infra.Marshal(infra.JSON, msg)
 	if err != nil {
 		return err
 	}

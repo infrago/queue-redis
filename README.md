@@ -1,2 +1,2 @@
 # queue-redis
-bamgoo redis queue driver.
+infrago redis queue driver.
