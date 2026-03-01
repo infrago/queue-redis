@@ -1,47 +1,39 @@
 # queue-redis
 
-`queue-redis` 是 `queue` 模块的 `redis` 驱动。
+`queue-redis` 是 `github.com/infrago/queue` 的**redis 驱动**。
 
-## 安装
+## 包定位
 
-```bash
-go get github.com/infrago/queue@latest
-go get github.com/infrago/queue-redis@latest
-```
+- 类型：驱动
+- 作用：把 `queue` 模块的统一接口落到 `redis` 后端实现
 
-## 接入
+## 快速接入
 
 ```go
 import (
     _ "github.com/infrago/queue"
     _ "github.com/infrago/queue-redis"
-    "github.com/infrago/infra"
 )
-
-func main() {
-    infra.Run()
-}
 ```
-
-## 配置示例
 
 ```toml
 [queue]
 driver = "redis"
 ```
 
-## 公开 API（摘自源码）
+## `setting` 专用配置项
 
-- `func (d *redisDriver) Connect(inst *queue.Instance) (queue.Connection, error)`
-- `func (c *redisConnection) Open() error`
-- `func (c *redisConnection) Close() error`
-- `func (c *redisConnection) Register(name string) error`
-- `func (c *redisConnection) Start() error`
-- `func (c *redisConnection) Stop() error`
-- `func (c *redisConnection) Publish(name string, data []byte) error`
-- `func (c *redisConnection) DeferredPublish(name string, data []byte, delay time.Duration) error`
+配置位置：`[queue].setting`
 
-## 排错
+- `port`
+- `server`
+- `host`
+- `addr`
+- `username`
+- `password`
+- `database`
 
-- driver 未生效：确认模块段 `driver` 值与驱动名一致
-- 连接失败：检查 endpoint/host/port/鉴权配置
+## 说明
+
+- `setting` 仅对当前驱动生效，不同驱动键名可能不同
+- 连接失败时优先核对 `setting` 中 host/port/认证/超时等参数
