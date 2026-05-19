@@ -2,7 +2,9 @@ package queue_redis
 
 import (
 	"context"
+	"net"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -38,25 +40,6 @@ type (
 func (d *redisDriver) Connect(inst *queue.Instance) (queue.Connection, error) {
 	setting := inst.Config.Setting
 
-	addr := "127.0.0.1:6379"
-	host := ""
-	port := "6379"
-	if v, ok := setting["port"].(string); ok && v != "" {
-		port = v
-	}
-	if v, ok := setting["server"].(string); ok && v != "" {
-		host = v
-	}
-	if v, ok := setting["host"].(string); ok && v != "" {
-		host = v
-	}
-	if host != "" {
-		addr = host + ":" + port
-	}
-	if v, ok := setting["addr"].(string); ok && v != "" {
-		addr = v
-	}
-
 	username, _ := setting["username"].(string)
 	password, _ := setting["password"].(string)
 
@@ -76,7 +59,7 @@ func (d *redisDriver) Connect(inst *queue.Instance) (queue.Connection, error) {
 
 	return &redisConnection{
 		client: redis.NewClient(&redis.Options{
-			Addr:     addr,
+			Addr:     redisAddr(setting),
 			Username: username,
 			Password: password,
 			DB:       database,
@@ -109,6 +92,17 @@ func (c *redisConnection) Start() error {
 		return nil
 	}
 
+	recovered := make(map[string]struct{}, len(c.queues))
+	for _, queueName := range c.queues {
+		if _, ok := recovered[queueName]; ok {
+			continue
+		}
+		if err := c.recoverProcessing(queueName); err != nil {
+			return err
+		}
+		recovered[queueName] = struct{}{}
+	}
+
 	for _, queueName := range c.queues {
 		q := queueName
 		c.wg.Add(1)
@@ -121,7 +115,8 @@ func (c *redisConnection) Start() error {
 				default:
 				}
 
-				values, err := c.client.BRPop(context.Background(), time.Second, q).Result()
+				processing := processingName(q)
+				raw, err := c.client.BRPopLPush(context.Background(), q, processing, time.Second).Result()
 				if err != nil {
 					if err == redis.Nil {
 						continue
@@ -129,19 +124,33 @@ func (c *redisConnection) Start() error {
 					time.Sleep(100 * time.Millisecond)
 					continue
 				}
-				if len(values) < 2 {
-					continue
-				}
 
 				msg := redisMessage{}
-				if err := infra.Unmarshal(infra.JSON, []byte(values[1]), &msg); err != nil {
+				if err := infra.Unmarshal(infra.JSON, []byte(raw), &msg); err != nil {
+					c.ack(processing, raw)
 					continue
 				}
 				now := time.Now()
-				if msg.After > 0 && msg.After > now.Unix() {
-					time.Sleep(time.Second)
-					c.publish(q, &msg)
-					continue
+				if msg.After > 0 {
+					after := time.Unix(0, msg.After)
+					if after.After(now) {
+						delay := time.Until(after)
+						if delay > time.Second {
+							delay = time.Second
+						}
+						timer := time.NewTimer(delay)
+						select {
+						case <-timer.C:
+						case <-c.done:
+							timer.Stop()
+							return
+						}
+						msg.After = after.UnixNano()
+						if c.publish(q, &msg) == nil {
+							c.ack(processing, raw)
+						}
+						continue
+					}
 				}
 
 				req := queue.Request{
@@ -153,8 +162,12 @@ func (c *redisConnection) Start() error {
 				res := c.instance.Serve(req)
 				if res.Retry {
 					msg.Attempt++
-					msg.After = now.Add(res.Delay).Unix()
-					c.publish(q, &msg)
+					msg.After = now.Add(res.Delay).UnixNano()
+					if c.publish(q, &msg) == nil {
+						c.ack(processing, raw)
+					}
+				} else {
+					c.ack(processing, raw)
 				}
 			}
 		}()
@@ -184,6 +197,27 @@ func (c *redisConnection) publish(name string, msg *redisMessage) error {
 	return c.client.LPush(context.Background(), name, data).Err()
 }
 
+func (c *redisConnection) ack(processing, raw string) {
+	_ = c.client.LRem(context.Background(), processing, 1, raw).Err()
+}
+
+func (c *redisConnection) recoverProcessing(name string) error {
+	processing := processingName(name)
+	for {
+		_, err := c.client.RPopLPush(context.Background(), processing, name).Result()
+		if err == redis.Nil {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+	}
+}
+
+func processingName(name string) string {
+	return name + ":processing"
+}
+
 func (c *redisConnection) Publish(name string, data []byte) error {
 	return c.publish(name, &redisMessage{
 		Attempt: 1,
@@ -195,9 +229,35 @@ func (c *redisConnection) Publish(name string, data []byte) error {
 func (c *redisConnection) DeferredPublish(name string, data []byte, delay time.Duration) error {
 	return c.publish(name, &redisMessage{
 		Attempt: 1,
-		After:   time.Now().Add(delay).Unix(),
+		After:   time.Now().Add(delay).UnixNano(),
 		Data:    data,
 	})
+}
+
+func redisAddr(setting map[string]any) string {
+	if v, ok := setting["addr"].(string); ok && strings.TrimSpace(v) != "" {
+		return strings.TrimSpace(v)
+	}
+
+	host := ""
+	if v, ok := setting["server"].(string); ok && strings.TrimSpace(v) != "" {
+		host = strings.TrimSpace(v)
+	}
+	if v, ok := setting["host"].(string); ok && strings.TrimSpace(v) != "" {
+		host = strings.TrimSpace(v)
+	}
+	if host == "" {
+		host = "127.0.0.1"
+	}
+
+	port := "6379"
+	if v, ok := setting["port"].(string); ok && strings.TrimSpace(v) != "" {
+		port = strings.TrimSpace(v)
+	}
+	if _, _, err := net.SplitHostPort(host); err == nil {
+		return host
+	}
+	return net.JoinHostPort(host, port)
 }
 
 var _ queue.Connection = (*redisConnection)(nil)
