@@ -32,8 +32,16 @@ driver = "redis"
 - `username`
 - `password`
 - `database`
+- `group`
+- `consumer`
+- `claim`
+- `consumer_idle`
+- `maxlen`
 
 ## 说明
 
+- 当前实现使用 Redis Streams consumer group，stream key 为 `{queue}:stream`
+- 延迟消息使用 `{queue}:delayed` sorted set，到期后搬入 stream
+- 旧版 list 数据会在启动时从 `{queue}` 和 `{queue}:processing` 迁移到 stream
 - `setting` 仅对当前驱动生效，不同驱动键名可能不同
 - 连接失败时优先核对 `setting` 中 host/port/认证/超时等参数
